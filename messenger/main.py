@@ -7,12 +7,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
+from messenger.api.auth import router as auth_router
 from messenger.config import settings
 from messenger.database import init_db
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> None:
     """Инициализация и завершение работы приложения."""
     logger.info("Starting messenger...")
 
@@ -44,8 +45,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Роутеры
+app.include_router(auth_router)
+
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict[str, str]:
     """Endpoint проверки работоспособности."""
     return {"status": "ok", "version": "0.1.0"}
