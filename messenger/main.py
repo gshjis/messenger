@@ -8,6 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
 from messenger.api.auth import router as auth_router
+from messenger.api.chat import router as chat_router
+from messenger.api.files import router as files_router
 from messenger.config import settings
 from messenger.database import init_db
 
@@ -47,6 +49,8 @@ app.add_middleware(
 
 # Роутеры
 app.include_router(auth_router)
+app.include_router(chat_router)
+app.include_router(files_router)
 
 
 @app.get("/health")
