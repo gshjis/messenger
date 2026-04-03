@@ -1,0 +1,61 @@
+[tool.poetry]
+name = "messenger"
+version = "0.1.0"
+description = "Личный мессенджер — self-hosted, Python + FastAPI + Vue 3 PWA"
+authors = ["gshjis <ilya.togan@gmail.com>"]
+readme = "README.md"
+packages = [{include = "messenger"}]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.115.0"
+uvicorn = {version = "^0.43.0", extras = ["standard"]}
+sqlmodel = "^0.0.22"
+argon2-cffi = "^23.1.0"
+python-magic = "^0.4.27"
+aiofiles = "^24.1.0"
+slowapi = "^0.1.9"
+pydantic-settings = "^2.6.0"
+python-jose = {version = "^3.3.0", extras = ["cryptography"]}
+python-multipart = "^0.0.18"
+loguru = "^0.7.2"
+alembic = "^1.14.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.0"
+pytest-asyncio = "^0.24.0"
+httpx = "^0.28.0"
+coverage = "^7.6.0"
+ruff = "^0.8.0"
+mypy = "^1.13.0"
+pre-commit = "^4.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.coverage.run]
+source = ["messenger"]
+omit = ["tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+exclude_lines = ["pragma: no cover", "if __name__ == .__main__.:"]
+fail_under = 80

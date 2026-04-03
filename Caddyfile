@@ -1,0 +1,47 @@
+# Замените your-domain.com на ваш реальный домен
+your-domain.com {
+    # Frontend (статические файлы)
+    handle /* {
+        reverse_proxy frontend:80
+    }
+
+    # Backend API
+    handle /api/* {
+        reverse_proxy app:8000
+    }
+
+    # WebSocket
+    handle /ws/* {
+        reverse_proxy app:8000
+    }
+
+    # Health check
+    handle /health {
+        reverse_proxy app:8000
+    }
+
+    encode gzip
+    log {
+        output stdout
+        format json
+    }
+}
+
+# Локальная разработка (без HTTPS)
+http://localhost {
+    handle /* {
+        reverse_proxy frontend:80
+    }
+
+    handle /api/* {
+        reverse_proxy app:8000
+    }
+
+    handle /ws/* {
+        reverse_proxy app:8000
+    }
+
+    handle /health {
+        reverse_proxy app:8000
+    }
+}
