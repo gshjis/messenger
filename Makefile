@@ -8,6 +8,11 @@
 up:
 	docker compose up -d --build
 
+# Сборка с нуля без кеша
+build:
+	docker compose build --no-cache
+	docker compose up -d
+
 # Остановка всех сервисов
 down:
 	docker compose down
@@ -94,7 +99,7 @@ clean-all: clean
 # Помощь
 help:
 	@echo "Available commands:"
-	@echo "  make up          - Start all services"
+	@echo "  make build       - Build from scratch without cache"
 	@echo "  make down        - Stop all services"
 	@echo "  make restart     - Restart all services"
 	@echo "  make logs        - View app logs"
