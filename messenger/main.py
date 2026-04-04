@@ -12,6 +12,7 @@ from messenger.api.chat import router as chat_router
 from messenger.api.files import router as files_router
 from messenger.config import settings
 from messenger.database import init_db
+from messenger.websockets.handler import router as ws_router
 
 
 @asynccontextmanager
@@ -51,6 +52,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(files_router)
+app.include_router(ws_router)
 
 
 @app.get("/health")
