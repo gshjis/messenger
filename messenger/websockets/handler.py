@@ -41,10 +41,11 @@ async def websocket_endpoint(websocket: WebSocket):
         await websocket.close(code=4002, reason="Invalid token")
         return
 
-    user_id: int | None = payload.get("sub")
-    if user_id is None:
+    sub = payload.get("sub")
+    if sub is None:
         await websocket.close(code=4003, reason="Invalid payload")
         return
+    user_id = int(sub)
 
     # Подключение
     await manager.connect(websocket, user_id)
