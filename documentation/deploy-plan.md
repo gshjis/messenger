@@ -20,7 +20,7 @@
                     │  │ systemd:    │  │ systemd:         │  │
                     │  │ messenger-  │  │ messenger-       │  │
                     │  │ frontend    │  │ backend          │  │
-                    │  │ (serve :3001│  │ (uvicorn :8001)  │  │
+                    │  │(serve :3001)│  │ (uvicorn :8001)  │  │
                     │  └─────────────┘  └──────────────────┘  │
                     │                                         │
                     │  ┌─────────────┐  ┌──────────────────┐  │
