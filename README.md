@@ -54,6 +54,19 @@ make up
 http://localhost
 ```
 
+## Git hooks
+
+### Запуск тестов при слиянии в main
+
+```bash
+# Установка post-merge hook
+cp hooks/post-merge .git/hooks/post-merge
+chmod +x .git/hooks/post-merge
+```
+
+После этого при каждом `git merge` в ветку `main` автоматически запустятся тесты.
+Если тесты провалятся — merge будет отменён.
+
 ## Команды Makefile
 
 | Команда | Описание |

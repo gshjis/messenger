@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# ============================================
+# Git post-merge hook — запуск тестов при слиянии в main
+# ============================================
+# Установка:
+#   cp hooks/post-merge .git/hooks/post-merge
+#   chmod +x .git/hooks/post-merge
+
+BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null)
+
+if [ "$BRANCH" = "main" ]; then
+    echo "========================================"
+    echo "🧪 Running tests after merge to main..."
+    echo "========================================"
+
+    # Установка зависимостей если нужно
+    if ! poetry run pytest --version &>/dev/null; then
+        echo "Installing dependencies..."
+        poetry install
+    fi
+
+    # Запуск тестов
+    if poetry run pytest tests/ -v --tb=short; then
+        echo "✅ All tests passed!"
+    else
+        echo "❌ Tests failed! Consider reverting the merge."
+        echo "   To revert: git reset --hard HEAD@{1}"
+        exit 1
+    fi
+fi
