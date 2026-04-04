@@ -122,9 +122,11 @@ async def auth_client(test_user: User) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides[get_session] = override_get_session
 
     transport = ASGITransport(app=app, raise_app_exceptions=False)
-    ac = AsyncClient(transport=transport, base_url="http://test")
-    ac.headers["Authorization"] = f"Bearer {token}"
-    yield ac
-    await ac.aclose()
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {token}"},
+    ) as ac:
+        yield ac
 
     app.dependency_overrides.clear()
