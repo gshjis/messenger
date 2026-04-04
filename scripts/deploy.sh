@@ -27,14 +27,29 @@
 set -euo pipefail
 
 # =============================================================================
-# НАСТРАИВАЕМЫЕ ПАРАМЕТРЫ
+# Загрузка .env файла (если существует в корне проекта)
+# =============================================================================
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+ENV_FILE="${PROJECT_DIR}/.env"
+
+if [ -f "$ENV_FILE" ]; then
+    # Загружаем переменные из .env (игнорируем комментарии и пустые строки)
+    set -a
+    # shellcheck disable=SC1090
+    source <(grep -E '^[A-Za-z_]+=.' "$ENV_FILE" 2>/dev/null || true)
+    set +a
+fi
+
+# =============================================================================
+# НАСТРАИВАЕМЫЕ ПАРАМЕТРЫ (приоритет: CLI > .env > defaults)
 # =============================================================================
 
 # Домен мессенджера (обязательно укажите ваш реальный домен)
-DOMAIN="${MESSENGER_DOMAIN:-messenger.example.com}"
+DOMAIN="${MESSENGER_DOMAIN:-YOUR_DOMAIN_HERE}"
 
 # Email для уведомлений Let's Encrypt
-EMAIL="${MESSENGER_EMAIL:-admin@example.com}"
+EMAIL="${MESSENGER_EMAIL:-YOUR_EMAIL_HERE}"
 
 # Репозиторий мессенджера
 REPO_URL="${MESSENGER_REPO:-https://github.com/your-org/messenger.git}"
