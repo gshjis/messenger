@@ -12,6 +12,7 @@
 | 🔒 Безопасность | [security.md](security.md) | JWT, argon2id, rate limiting, security headers |
 | 🚀 Развёртывание | [deployment.md](deployment.md) | Docker Compose, systemd, nginx, бэкапы |
 | 💻 Разработка | [development.md](development.md) | Структура, тесты, CI/CD, гайдлайны |
+| 🌐 Nginx (хост) | [nginx-host.md](nginx-host.md) | Настройка хостового nginx, SSL, интеграция |
 
 ## Краткое описание
 
