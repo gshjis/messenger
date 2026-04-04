@@ -1,6 +1,6 @@
 """Роутеры аутентификации."""
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Response, status
 from loguru import logger
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -30,9 +30,14 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 async def get_current_user(
     token: str | None = Cookie(default=None, alias="access_token"),
+    authorization: str | None = Header(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> User:
-    """Получение текущего пользователя из JWT cookie."""
+    """Получение текущего пользователя из JWT cookie или Authorization header."""
+    # Поддержка Authorization header для тестирования
+    if not token and authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ", 1)[1]
+
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
@@ -165,7 +170,7 @@ async def update_profile(
 
         current_user.username = request.username
 
-    await session.add(current_user)
+    session.add(current_user)
     await session.commit()
     await session.refresh(current_user)
 
