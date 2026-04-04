@@ -10,48 +10,19 @@
 - Домен настроен (A-запись на IP сервера)
 - SSL сертификат (Let's Encrypt или другой)
 
-## Конфигурация nginx
+## Интеграция с существующим конфигом VPN Manager
 
-Создайте файл `/etc/nginx/sites-available/messenger`:
+Объедините оба сервиса в одном `server` блоке:
 
 ```nginx
-# Upstream для backend мессенджера
-upstream messenger_backend {
-    server 127.0.0.1:8001;
-    keepalive 32;
-}
-
-# Upstream для frontend мессенджера
-upstream messenger_frontend {
-    server 127.0.0.1:3001;
-    keepalive 32;
-}
-
-# HTTP → HTTPS redirect
-server {
-    listen 80;
-    listen [::]:80;
-    server_name messenger.example.com;
-
-    # Let's Encrypt challenge
-    location /.well-known/acme-challenge/ {
-        root /var/www/certbot;
-    }
-
-    location / {
-        return 301 https://$host$request_uri;
-    }
-}
-
-# HTTPS server
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name messenger.example.com;
+    server_name gshjis.org;
 
     # SSL сертификаты
-    ssl_certificate     /etc/letsencrypt/live/messenger.example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/messenger.example.com/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/gshjis.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/gshjis.org/privkey.pem;
 
     # SSL настройки
     ssl_protocols TLSv1.2 TLSv1.3;
@@ -73,10 +44,26 @@ server {
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
     gzip_min_length 1000;
 
-    # Мессенджер — location для добавления в существующий server block
+    # ===== VPN Manager =====
+    location /vpn/ {
+        alias /var/www/vpn-manager/;
+        index index.html;
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /vpn/api/ {
+        proxy_pass http://127.0.0.1:8000/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # ===== Мессенджер =====
+
     # Frontend SPA
     location /messenger/ {
-        proxy_pass http://messenger_frontend;
+        proxy_pass http://127.0.0.1:3001/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -87,7 +74,7 @@ server {
 
     # Backend API
     location /messenger/api/ {
-        proxy_pass http://messenger_backend;
+        proxy_pass http://127.0.0.1:8001/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -100,7 +87,7 @@ server {
 
     # Backend WebSocket
     location /messenger/ws {
-        proxy_pass http://messenger_backend;
+        proxy_pass http://127.0.0.1:8001/ws;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -115,7 +102,7 @@ server {
 
     # Health check
     location /messenger/health {
-        proxy_pass http://messenger_backend;
+        proxy_pass http://127.0.0.1:8001/health;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
     }
@@ -132,9 +119,6 @@ server {
 ## Активация
 
 ```bash
-# Создание symlink
-sudo ln -s /etc/nginx/sites-available/messenger /etc/nginx/sites-enabled/
-
 # Тест конфигурации
 sudo nginx -t
 
@@ -144,7 +128,7 @@ sudo systemctl reload nginx
 
 ## Запуск мессенджера
 
-### Backend
+### Backend (порт 8001)
 
 ```bash
 cd /opt/messenger
@@ -152,7 +136,7 @@ poetry install
 uvicorn messenger.main:app --host 127.0.0.1 --port 8001 --workers 2
 ```
 
-### Frontend
+### Frontend (порт 3001)
 
 ```bash
 cd /opt/messenger/frontend
@@ -165,39 +149,13 @@ npx serve --single --listen 3001 --cors dist/
 
 ```bash
 # Health check
-curl https://messenger.example.com/messenger/health
+curl https://gshjis.org/messenger/health
 
 # Frontend
-curl https://messenger.example.com/messenger/
+curl https://gshjis.org/messenger/
 
 # API
-curl https://messenger.example.com/messenger/api/auth/login
-```
-
-## Интеграция с существующим nginx
-
-Если у вас уже есть server block для домена, добавьте location блоки в него:
-
-```nginx
-server {
-    # ... существующая конфигурация ...
-
-    # Мессенджер
-    location /messenger/ {
-        proxy_pass http://messenger_frontend;
-        # ... настройки прокси ...
-    }
-
-    location /messenger/api/ {
-        proxy_pass http://messenger_backend;
-        # ... настройки прокси ...
-    }
-
-    location /messenger/ws {
-        proxy_pass http://messenger_backend;
-        # ... настройки WebSocket ...
-    }
-}
+curl https://gshjis.org/messenger/api/auth/login
 ```
 
 ## Troubleshooting
