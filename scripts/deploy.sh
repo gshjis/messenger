@@ -46,9 +46,9 @@ FRONTEND_DIR="/var/www/messenger"
 LOG_DIR="/var/log/messenger"
 DATA_DIR="/opt/messenger/data"
 
-# Порты
-BACKEND_PORT=8000
-FRONTEND_PORT=3000
+# Порты (8000 может быть занят VPN Manager, 3000 — Vite/React)
+BACKEND_PORT=8001
+FRONTEND_PORT=3001
 
 # Системный пользователь
 USER_NAME="messenger"
@@ -120,6 +120,24 @@ check_domain() {
     if [ "$DOMAIN" = "messenger.example.com" ]; then
         die "Укажите реальный домен. Измените переменную DOMAIN в начале скрипта или задайте MESSENGER_DOMAIN."
     fi
+
+    # Проверка DNS
+    log_info "Проверка DNS для ${DOMAIN}..."
+    local ip
+    ip=$(dig +short "$DOMAIN" 2>/dev/null | head -1 || echo "")
+
+    if [ -z "$ip" ]; then
+        log_warn "Не удалось проверить DNS для ${DOMAIN}. Убедитесь что A-запись настроена."
+    else
+        local server_ip
+        server_ip=$(curl -s ifconfig.me 2>/dev/null || echo "")
+        if [ "$ip" != "$server_ip" ]; then
+            log_warn "DNS ${DOMAIN} указывает на ${ip}, а сервер имеет IP ${server_ip}"
+        else
+            log_ok "DNS: ${DOMAIN} → ${ip}"
+        fi
+    fi
+
     log_ok "Домен: $DOMAIN"
 }
 
