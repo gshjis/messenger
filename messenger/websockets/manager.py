@@ -26,9 +26,14 @@ class ConnectionManager:
         self._active_connections[user_id] = websocket
         logger.info(f"WebSocket connected: user {user_id}")
 
-    def disconnect(self, user_id: int) -> None:
+    async def disconnect(self, user_id: int) -> None:
         """Отключить пользователя."""
-        self._active_connections.pop(user_id, None)
+        ws = self._active_connections.pop(user_id, None)
+        if ws:
+            try:
+                await ws.close()
+            except Exception:
+                pass
 
         # Удалить из всех подписок чатов
         for chat_id in list(self._user_subscriptions.get(user_id, set())):
@@ -67,7 +72,7 @@ class ConnectionManager:
             await ws.send_json(message)
             return True
         except Exception:
-            self.disconnect(user_id)
+            await self.disconnect(user_id)
             return False
 
     async def broadcast_to_chat(self, chat_id: int, message: dict, exclude_user_id: int | None = None) -> int:
@@ -91,9 +96,13 @@ class ConnectionManager:
                 await ws.send_json(message)
                 delivered += 1
             except Exception:
-                self.disconnect(user_id)
+                await self.disconnect(user_id)
 
         return delivered
+
+    def is_subscribed(self, user_id: int, chat_id: int) -> bool:
+        """Проверить подписан ли пользователь на чат."""
+        return user_id in self._chat_subscriptions.get(chat_id, set())
 
     def get_online_users(self, chat_id: int) -> set[int]:
         """Получить онлайн-пользователей в чате."""

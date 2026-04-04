@@ -1,8 +1,6 @@
 """Роутеры для управления чатами."""
 
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
 from sqlmodel import col, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -203,11 +201,10 @@ async def delete_chat(
         raise HTTPException(status_code=404, detail="Chat not found")
 
     # Удаление сообщений и участников
-    await session.exec(
+    messages_result = await session.exec(
         select(Message).where(Message.chat_id == chat_id)
     )
-    messages = result.all()
-    for msg in messages:
+    for msg in messages_result.all():
         await session.delete(msg)
 
     members_result = await session.exec(
@@ -480,14 +477,16 @@ async def search_messages(
     if membership is None:
         raise HTTPException(status_code=404, detail="Chat not found")
 
-    from sqlalchemy import text
+    # Экранирование спецсимволов LIKE
+    escaped_q = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
     # Общее количество
     count_result = await session.exec(
         select(func.count()).select_from(Message).where(
             Message.chat_id == chat_id,
             Message.is_deleted == False,  # noqa: E712
-        ).where(text(f"content LIKE '%{q}%'"))
+            Message.content.like(f"%{escaped_q}%"),
+        )
     )
     total = count_result.one()
 
@@ -498,7 +497,8 @@ async def search_messages(
         .where(
             Message.chat_id == chat_id,
             Message.is_deleted == False,  # noqa: E712
-        ).where(text(f"content LIKE '%{q}%'"))
+            Message.content.like(f"%{escaped_q}%"),
+        )
         .order_by(col(Message.created_at).desc())
         .limit(50)
     )

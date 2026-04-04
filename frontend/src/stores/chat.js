@@ -46,19 +46,22 @@ export const useChatStore = defineStore('chat', () => {
   async function fetchMessages(token) {
     if (!currentChat.value || !hasMore.value) return
     loading.value = true
-    const res = await fetch(
-      `/api/chats/${currentChat.value.id}/messages?page=${page.value}&per_page=50`,
-      { headers: { 'Authorization': `Bearer ${token}` } }
-    )
-    if (res.ok) {
-      const data = await res.json()
-      messages.value = [...messages.value, ...data.messages].sort((a, b) =>
-        new Date(a.created_at) - new Date(b.created_at)
+    try {
+      const res = await fetch(
+        `/api/chats/${currentChat.value.id}/messages?page=${page.value}&per_page=50`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
       )
-      hasMore.value = data.has_next
-      page.value++
+      if (res.ok) {
+        const data = await res.json()
+        messages.value = [...messages.value, ...data.messages].sort((a, b) =>
+          new Date(a.created_at) - new Date(b.created_at)
+        )
+        hasMore.value = data.has_next
+        page.value++
+      }
+    } finally {
+      loading.value = false
     }
-    loading.value = false
   }
 
   async function fetchMembers(token) {

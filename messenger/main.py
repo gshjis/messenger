@@ -32,8 +32,8 @@ async def lifespan(app: FastAPI) -> None:
     logger.info(f"Log level: {settings.log_level}")
     logger.info(f"Debug mode: {settings.debug}")
 
-    # Настройка логирования
-    logger.remove()
+    # Настройка логирования (удаляем только default handler)
+    logger.remove(0)
     logger.add(
         "stderr",
         level=settings.log_level,

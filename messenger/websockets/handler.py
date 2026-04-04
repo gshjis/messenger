@@ -75,10 +75,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 await websocket.send_json({"type": "error", "message": f"Unknown action: {action}"})
 
     except WebSocketDisconnect:
-        manager.disconnect(user_id)
+        await manager.disconnect(user_id)
     except Exception as e:
         logger.error(f"WebSocket error for user {user_id}: {e}")
-        manager.disconnect(user_id)
+        await manager.disconnect(user_id)
 
 
 async def handle_subscribe(data: dict, user_id: int, websocket: WebSocket) -> None:
@@ -110,7 +110,7 @@ async def handle_message(data: dict, user_id: int) -> None:
         return
 
     # Проверка что пользователь подписан на чат
-    if user_id not in manager._chat_subscriptions.get(chat_id, set()):
+    if not manager.is_subscribed(user_id, chat_id):
         return
 
     # Сохранение в БД

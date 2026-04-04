@@ -1,5 +1,6 @@
 """Конфигурация приложения из переменных окружения."""
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -53,6 +54,13 @@ class Settings(BaseSettings):
 
     # Админ
     admin_invite_code: str = "ADMIN-SETUP-CODE"
+
+    @model_validator(mode="after")
+    def check_jwt_secret(self) -> "Settings":
+        """Проверка что JWT secret изменён в production."""
+        if self.jwt_secret_key == "change-me-in-production" and not self.debug:
+            raise ValueError("JWT_SECRET_KEY must be changed in production. Generate with: python -c 'import secrets; print(secrets.token_urlsafe(32))'")
+        return self
 
 
 settings = Settings()

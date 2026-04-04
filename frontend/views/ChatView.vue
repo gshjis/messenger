@@ -136,6 +136,7 @@ const theme = ref(localStorage.getItem('theme') || 'dark')
 document.documentElement.setAttribute('data-theme', theme.value)
 
 let ws = null
+let reconnectTimer = null
 
 onMounted(async () => {
   if (!auth.token) {
@@ -148,6 +149,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (ws) ws.close()
+  if (reconnectTimer) clearTimeout(reconnectTimer)
 })
 
 function toggleTheme() {
@@ -179,7 +181,7 @@ function connectWebSocket() {
   ws.onerror = (err) => console.error('WebSocket error:', err)
   ws.onclose = () => {
     console.log('WebSocket closed, reconnecting...')
-    setTimeout(connectWebSocket, 3000)
+    reconnectTimer = setTimeout(connectWebSocket, 3000)
   }
 }
 

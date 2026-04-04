@@ -1,9 +1,7 @@
 """Конфигурация и фикстуры для pytest."""
 
-import asyncio
-from collections.abc import AsyncGenerator, Generator
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from collections.abc import AsyncGenerator
+from unittest.mock import MagicMock
 
 import pytest
 import pytest_asyncio
@@ -18,14 +16,6 @@ from messenger.models.user import User
 
 # Тестовая БД в памяти
 TEST_DB_URL = "sqlite+aiosqlite://"
-
-
-@pytest.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    """Создание event loop для сессии тестов."""
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest_asyncio.fixture

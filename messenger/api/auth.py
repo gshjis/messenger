@@ -1,10 +1,7 @@
 """Роутеры аутентификации."""
 
-from datetime import datetime, timedelta
-
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from loguru import logger
-from pydantic import BaseModel
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 

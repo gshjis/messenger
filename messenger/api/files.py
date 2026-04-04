@@ -1,6 +1,6 @@
 """Роутеры для загрузки и скачивания файлов."""
 
-import os
+import uuid
 from pathlib import Path
 
 import magic
@@ -13,7 +13,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from messenger.api.auth import get_current_user
 from messenger.config import settings
 from messenger.database import get_session
-from messenger.models.chat import Chat
 from messenger.models.chat_member import ChatMember
 from messenger.models.message import Message
 from messenger.models.user import User
@@ -79,21 +78,22 @@ async def upload_file(
     upload_dir = Path(settings.upload_dir) / str(chat_id)
     upload_dir.mkdir(parents=True, exist_ok=True)
 
-    # Безопасное имя файла
+    # Безопасное имя файла — UUID для предотвращения path traversal и коллизий
     original_name = file.filename or "unnamed"
-    safe_name = original_name.replace(" ", "_").replace("/", "_")
-    file_path = upload_dir / safe_name
+    # Санитизация: оставляем только alphanumeric, пробелы, точки, дефисы, подчёркивания
+    safe_name = "".join(c for c in original_name if c.isalnum() or c in "._- ")
+    safe_name = safe_name.strip(".")
+    if not safe_name:
+        safe_name = "file"
 
-    # Уникальное имя (добавляем ID пользователя)
-    counter = 0
-    while file_path.exists():
-        counter += 1
-        name_parts = safe_name.rsplit(".", 1)
-        if len(name_parts) == 2:
-            file_path = upload_dir / f"{name_parts[0]}_{counter}.{name_parts[1]}"
-        else:
-            file_path = upload_dir / f"{safe_name}_{counter}"
+    # Добавляем UUID для уникальности
+    name_parts = safe_name.rsplit(".", 1)
+    if len(name_parts) == 2:
+        unique_name = f"{uuid.uuid4().hex}.{name_parts[1]}"
+    else:
+        unique_name = uuid.uuid4().hex
 
+    file_path = upload_dir / unique_name
     file_path.write_bytes(content)
 
     # Создание сообщения с файлом
@@ -134,14 +134,16 @@ async def download_file(
     if not has_access:
         raise HTTPException(status_code=404, detail="Chat not found")
 
-    # Проверка что файл существует
-    full_path = Path(settings.upload_dir) / file_path
+    # Проверка что файл существует и нет path traversal
+    upload_base = Path(settings.upload_dir).resolve()
+    full_path = (upload_base / file_path).resolve()
+
+    # Защита от path traversal
+    if not str(full_path).startswith(str(upload_base)):
+        raise HTTPException(status_code=403, detail="Access denied")
+
     if not full_path.exists() or not full_path.is_file():
         raise HTTPException(status_code=404, detail="File not found")
-
-    # Проверка что файл принадлежит этому чату
-    if str(chat_id) not in str(full_path):
-        raise HTTPException(status_code=403, detail="Access denied")
 
     return FileResponse(
         path=str(full_path),
