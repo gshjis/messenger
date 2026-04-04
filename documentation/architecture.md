@@ -2,44 +2,40 @@
 
 ## Общая схема
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        Клиент (Vue 3 PWA)                    │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────────┐ │
-│  │AuthView  │  │ChatView  │  │Pinia     │  │WebSocket    │ │
-│  │(Login/   │  │(Sidebar+ │  │Stores    │  │Connection   │ │
-│  │Register) │  │Messages) │  │(auth,    │  │Manager      │ │
-│  │          │  │          │  │ chat)    │  │             │ │
-│  └──────────┘  └──────────┘  └──────────┘  └─────────────┘ │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ HTTP + WebSocket
-┌──────────────────────────▼──────────────────────────────────┐
-│                     Backend (FastAPI)                        │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────────┐ │
-│  │Auth API  │  │Chat API  │  │Files API │  │WebSocket    │ │
-│  │/api/auth │  │/api/chats│  │/api/files│  │Handler      │ │
-│  │          │  │          │  │          │  │             │ │
-│  └──────────┘  └──────────┘  └──────────┘  └─────────────┘ │
-│  ┌────────────────────────────────────────────────────────┐ │
-│  │              Security Layer                            │ │
-│  │  JWT (HttpOnly cookie) + argon2id + rate limiting     │ │
-│  └────────────────────────────────────────────────────────┘ │
-│  ┌────────────────────────────────────────────────────────┐ │
-│  │              Database Layer (SQLModel)                  │ │
-│  │  User, Chat, ChatMember, Message, InviteCode           │ │
-│  └────────────────────────────────────────────────────────┘ │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────┐
-│                     SQLite (WAL mode)                        │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────────┐ │
-│  │users     │  │chats     │  │messages  │  │chat_members │ │
-│  │          │  │          │  │          │  │             │ │
-│  └──────────┘  └──────────┘  └──────────┘  └─────────────┘ │
-│  ┌────────────────────────────────────────────────────────┐ │
-│  │              invite_codes                              │ │
-│  └────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    Client["📱 Клиент (Vue 3 PWA)"]
+    subgraph Frontend
+        AuthView["AuthView<br/>Login/Register"]
+        ChatView["ChatView<br/>Sidebar+Messages"]
+        Stores["Pinia Stores<br/>auth, chat"]
+        WS["WebSocket<br/>Connection"]
+    end
+    Client --> Frontend
+
+    subgraph Backend["⚙️ Backend (FastAPI)"]
+        AuthAPI["Auth API<br/>/api/auth"]
+        ChatAPI["Chat API<br/>/api/chats"]
+        FilesAPI["Files API<br/>/api/files"]
+        WSHandler["WebSocket<br/>Handler"]
+        Security["🔒 Security Layer<br/>JWT + argon2id + rate limit"]
+        DBLayer["🗄️ Database Layer<br/>SQLModel"]
+    end
+
+    Frontend -->|HTTP + WebSocket| Backend
+    AuthView --> AuthAPI
+    ChatView --> ChatAPI
+    WS --> WSHandler
+
+    subgraph Database["💾 SQLite (WAL)"]
+        Users["users"]
+        Chats["chats"]
+        Messages["messages"]
+        Members["chat_members"]
+        Invites["invite_codes"]
+    end
+
+    DBLayer --> Database
 ```
 
 ## Компоненты
@@ -73,31 +69,89 @@
 
 ### Аутентификация
 
-```
-Client → POST /api/auth/register → Проверка invite → Создание User → JWT → Set-Cookie
-Client → POST /api/auth/login → Проверка пароля → JWT → Set-Cookie
-Client → GET /api/auth/me → Cookie → JWT decode → User из БД
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as Auth API
+    participant DB as Database
+    participant JWT as JWT
+
+    C->>A: POST /api/auth/register
+    A->>DB: Проверка invite
+    DB-->>A: Код валиден
+    A->>DB: Создание User (argon2id)
+    A->>JWT: Создание токена
+    JWT-->>A: Token
+    A-->>C: 201 + Set-Cookie (HttpOnly)
+
+    C->>A: POST /api/auth/login
+    A->>DB: Проверка пароля
+    DB-->>A: User найден
+    A->>JWT: Создание токена
+    A-->>C: 200 + Set-Cookie
+
+    C->>A: GET /api/auth/me
+    A->>JWT: Decode cookie
+    JWT-->>A: user_id
+    A->>DB: Запрос User
+    DB-->>A: User
+    A-->>C: 200 + User data
 ```
 
 ### Отправка сообщения (REST)
 
-```
-Client → POST /api/chats/{id}/messages → Проверка членства → Создание Message → Обновление chat.updated_at → Response
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant CA as Chat API
+    participant DB as Database
+
+    C->>CA: POST /api/chats/{id}/messages
+    CA->>DB: Проверка членства
+    DB-->>CA: Участник найден
+    CA->>DB: Создание Message
+    CA->>DB: Обновление chat.updated_at
+    DB-->>CA: OK
+    CA-->>C: 201 + Message
 ```
 
 ### Отправка сообщения (WebSocket)
 
-```
-Client → WS /ws?token=xxx → JWT decode → connect()
-Client → {"action":"subscribe","chat_id":1} → subscribe()
-Client → {"action":"message","chat_id":1,"content":"Hi"} → Проверка подписки → Создание Message → broadcast_to_chat()
-Server → {"type":"new_message","chat_id":1,"message":{...}} → Все подписчики
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant WS as WebSocket Handler
+    participant CM as ConnectionManager
+    participant DB as Database
+
+    C->>WS: WS /ws?token=xxx
+    WS->>WS: JWT decode
+    WS->>CM: connect(user_id)
+    CM-->>WS: OK
+    WS-->>C: Connected
+
+    C->>WS: {"action":"subscribe","chat_id":1}
+    WS->>CM: subscribe(user_id, chat_id)
+    CM-->>WS: OK
+    WS-->>C: {"type":"subscribed"}
+
+    C->>WS: {"action":"message","chat_id":1,"content":"Hi"}
+    WS->>CM: is_subscribed?
+    CM-->>WS: Yes
+    WS->>DB: Создание Message
+    DB-->>WS: OK
+    WS->>CM: broadcast_to_chat(chat_id=1)
+    CM->>C: {"type":"new_message","message":{...}}
 ```
 
 ### Статусы сообщений
 
-```
-sent → delivered (при получении WS) → read (при mark_read или открытии чата)
+```mermaid
+stateDiagram-v2
+    [*] --> sent: Сообщение создано
+    sent --> delivered: Получатель онлайн (WS)
+    delivered --> read: Получатель открыл чат
+    sent --> read: mark_read action
 ```
 
 ## Зависимости

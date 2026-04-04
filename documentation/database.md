@@ -8,6 +8,71 @@
 - **Внешние ключи:** Включены
 - **ORM:** SQLModel (SQLAlchemy 2.0 + Pydantic)
 
+## ER-диаграмма
+
+```mermaid
+erDiagram
+    USERS {
+        int id PK
+        string username UK
+        string hashed_password
+        string avatar_path
+        bool is_active
+        bool is_banned
+        datetime created_at
+        datetime updated_at
+    }
+
+    CHATS {
+        int id PK
+        string type
+        string name
+        string description
+        string avatar_path
+        datetime created_at
+        datetime updated_at
+    }
+
+    CHAT_MEMBERS {
+        int id PK
+        int chat_id FK
+        int user_id FK
+        string role
+        datetime joined_at
+    }
+
+    MESSAGES {
+        int id PK
+        int chat_id FK
+        int sender_id FK
+        string content
+        string file_path
+        string file_mime
+        int file_size
+        string status
+        bool is_deleted
+        datetime created_at
+        datetime updated_at
+    }
+
+    INVITE_CODES {
+        int id PK
+        string code UK
+        int max_uses
+        int used_count
+        int created_by FK
+        datetime created_at
+        datetime expires_at
+        bool is_active
+    }
+
+    USERS ||--o{ CHAT_MEMBERS : "состоит в"
+    CHATS ||--o{ CHAT_MEMBERS : "имеет"
+    CHATS ||--o{ MESSAGES : "содержит"
+    USERS ||--o{ MESSAGES : "отправляет"
+    USERS ||--o{ INVITE_CODES : "создаёт"
+```
+
 ## Модели
 
 ### User (users)
@@ -73,6 +138,71 @@
 | created_at | datetime | NOT NULL | utcnow | Дата создания |
 | expires_at | datetime\|None | — | NULL | Дата истечения |
 | is_active | bool | NOT NULL | True | Активен ли |
+
+## Диаграмма классов
+
+```mermaid
+classDiagram
+    class User {
+        +int id
+        +str username
+        +str hashed_password
+        +str? avatar_path
+        +bool is_active
+        +bool is_banned
+        +datetime created_at
+        +datetime updated_at
+    }
+
+    class Chat {
+        +int id
+        +ChatType type
+        +str? name
+        +str? description
+        +str? avatar_path
+        +datetime created_at
+        +datetime updated_at
+    }
+
+    class ChatMember {
+        +int id
+        +int chat_id
+        +int user_id
+        +MemberRole role
+        +datetime joined_at
+    }
+
+    class Message {
+        +int id
+        +int chat_id
+        +int sender_id
+        +str? content
+        +str? file_path
+        +str? file_mime
+        +int? file_size
+        +MessageStatus status
+        +bool is_deleted
+        +datetime created_at
+        +datetime updated_at
+    }
+
+    class InviteCode {
+        +int id
+        +str code
+        +int max_uses
+        +int used_count
+        +int? created_by
+        +datetime created_at
+        +datetime? expires_at
+        +bool is_active
+    }
+
+    User "1" --> "*" ChatMember : состоит в
+    Chat "1" --> "*" ChatMember : имеет
+    Chat "1" --> "*" Message : содержит
+    User "1" --> "*" Message : отправляет
+    User "1" --> "*" InviteCode : создаёт
+```
 
 ## Перечисления
 

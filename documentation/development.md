@@ -120,12 +120,21 @@ make hooks    # Установка pre-commit
 
 ### Git workflow
 
-```
-main ────────────────────────────────────────
-  │         │         │
-  ├─ feature/auth ────┘
-  ├─ feature/models ──┘
-  └─ feature/chats ───┘
+```mermaid
+gitGraph
+    commit id: "init"
+    branch feature/auth
+    commit id: "auth"
+    checkout main
+    merge feature/auth
+    branch feature/models
+    commit id: "models"
+    checkout main
+    merge feature/models
+    branch feature/chats
+    commit id: "chats"
+    checkout main
+    merge feature/chats
 ```
 
 - Feature ветки: `feature/<name>`

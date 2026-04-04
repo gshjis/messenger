@@ -2,6 +2,23 @@
 
 ## Docker Compose
 
+### Архитектура развёртывания
+
+```mermaid
+graph TB
+    Internet["🌐 Internet"]
+    Caddy["🔒 Caddy :443/:80<br/>Reverse Proxy + HTTPS"]
+    Nginx["🖥️ Nginx :80<br/>Frontend Static"]
+    App["⚙️ FastAPI :8000<br/>Backend API"]
+    DB["💾 SQLite<br/>./data/app.db"]
+
+    Internet --> Caddy
+    Caddy -->|/| Nginx
+    Caddy -->|/api/*| App
+    Caddy -->|/ws| App
+    App --> DB
+```
+
 ### Сервисы
 
 | Сервис | Образ | Порты | Описание |

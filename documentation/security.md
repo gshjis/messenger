@@ -51,6 +51,14 @@ payload = jwt.decode(token, secret, algorithms=["HS256"])
 
 ### Flow
 
+```mermaid
+flowchart LR
+    A[Получение invite-кода] --> B[Регистрация с кодом]
+    B --> C[Получение JWT в HttpOnly cookie]
+    C --> D[Все запросы с cookie]
+    D --> E[WebSocket через token query]
+```
+
 1. Пользователь получает invite-код от админа
 2. Регистрируется с кодом
 3. Получает JWT в HttpOnly cookie
