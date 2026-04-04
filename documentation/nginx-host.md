@@ -61,9 +61,9 @@ server {
 
     # ===== Мессенджер =====
 
-    # Frontend SPA
+    # Frontend SPA (Docker nginx на порту 9000)
     location /messenger/ {
-        proxy_pass http://127.0.0.1:3001/;
+        proxy_pass http://127.0.0.1:9000/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
