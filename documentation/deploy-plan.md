@@ -12,15 +12,15 @@
                     │                                         │
   Internet ────────►│  nginx :443 (HTTPS, Let's Encrypt)      │
                     │    │                                    │
-                    │    ├─ /          → frontend :3000       │
-                    │    ├─ /api/*     → backend  :8000       │
-                    │    └─ /ws        → backend  :8000 (WS)  │
+                    │    ├─ /messenger/      → frontend :3001       │
+                    │    ├─ /messenger/api/* → backend  :8001       │
+                    │    └─ /messenger/ws    → backend  :8001 (WS)  │
                     │                                         │
                     │  ┌─────────────┐  ┌──────────────────┐  │
                     │  │ systemd:    │  │ systemd:         │  │
                     │  │ messenger-  │  │ messenger-       │  │
                     │  │ frontend    │  │ backend          │  │
-                    │  │ (npm serve) │  │ (uvicorn)        │  │
+                    │  │ (serve :3001│  │ (uvicorn :8001)  │  │
                     │  └─────────────┘  └──────────────────┘  │
                     │                                         │
                     │  ┌─────────────┐  ┌──────────────────┐  │
