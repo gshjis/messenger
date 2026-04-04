@@ -32,20 +32,23 @@ async def lifespan(app: FastAPI) -> None:
     logger.info(f"Log level: {settings.log_level}")
     logger.info(f"Debug mode: {settings.debug}")
 
-    # Настройка логирования (удаляем только default handler)
+    # Настройка логирования
     logger.remove(0)
     logger.add(
         "stderr",
         level=settings.log_level,
         format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan> - <level>{message}</level>",
     )
-    logger.add(
-        "./data/logs/messenger_{time:YYYY-MM-DD}.log",
-        rotation="1 day",
-        retention="30 days",
-        level="INFO",
-        enqueue=True,
-    )
+    # Логи в файл — только если директория доступна для записи
+    log_dir = Path("./data/logs")
+    if log_dir.exists() or log_dir.mkdir(parents=True, exist_ok=True):
+        logger.add(
+            log_dir / "messenger_{time:YYYY-MM-DD}.log",
+            rotation="1 day",
+            retention="30 days",
+            level="INFO",
+            enqueue=True,
+        )
 
     # Создание директорий
     Path("./data").mkdir(parents=True, exist_ok=True)

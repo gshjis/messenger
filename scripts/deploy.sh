@@ -214,6 +214,7 @@ step_docker() {
 
     # Создание директорий
     mkdir -p ./data/uploads ./data/logs
+    chmod -R 777 ./data
 
     # Сборка
     log_info "Сборка образов..."
@@ -257,65 +258,156 @@ step_docker() {
 step_nginx() {
     log_info "=== Этап 5: Настройка nginx location ==="
 
-    cat > "$NGINX_CONF" <<'NGINX_EOF'
-# Upstream для backend мессенджера
+    # Проверяем есть ли уже наш конфиг
+    if [ -f "$NGINX_CONF" ]; then
+        log_ok "Nginx конфиг уже существует"
+        return 0
+    fi
+
+    # Находим существующий server block
+    local main_conf=""
+    for conf in /etc/nginx/sites-enabled/*; do
+        if [ -f "$conf" ] && grep -q "server_name" "$conf" 2>/dev/null; then
+            main_conf="$conf"
+            break
+        fi
+    done
+
+    if [ -z "$main_conf" ]; then
+        log_warn "Не найден существующий nginx конфиг. Создаём отдельный."
+        cat > "$NGINX_CONF" <<EOF
+server {
+    listen 80;
+    server_name ${DOMAIN};
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+    location / { return 301 https://\$host\$request_uri; }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name ${DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+
+    include /etc/nginx/snippets/messenger-locations.conf;
+}
+EOF
+        # Создаём фрагмент с location
+        cat > "/etc/nginx/snippets/messenger-locations.conf" <<EOF
 upstream messenger_backend {
-    server 127.0.0.1:BACKEND_PORT;
+    server 127.0.0.1:${BACKEND_PORT};
     keepalive 32;
 }
 
-# Upstream для frontend мессенджера
 upstream messenger_frontend {
-    server 127.0.0.1:FRONTEND_PORT;
+    server 127.0.0.1:${FRONTEND_PORT};
     keepalive 32;
 }
 
-# Добавьте эти location блоки в ваш существующий server block:
-#
-# location /messenger/ {
-#     proxy_pass http://messenger_frontend/;
-#     proxy_http_version 1.1;
-#     proxy_set_header Host $host;
-#     proxy_set_header X-Real-IP $remote_addr;
-#     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-#     proxy_set_header X-Forwarded-Proto $scheme;
-# }
-#
-# location /messenger/api/ {
-#     proxy_pass http://messenger_backend/;
-#     proxy_http_version 1.1;
-#     proxy_set_header Host $host;
-#     proxy_set_header X-Real-IP $remote_addr;
-#     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-#     proxy_set_header X-Forwarded-Proto $scheme;
-# }
-#
-# location /messenger/ws {
-#     proxy_pass http://messenger_backend/ws;
-#     proxy_http_version 1.1;
-#     proxy_set_header Upgrade $http_upgrade;
-#     proxy_set_header Connection "upgrade";
-#     proxy_set_header Host $host;
-#     proxy_set_header X-Real-IP $remote_addr;
-#     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-#     proxy_set_header X-Forwarded-Proto $scheme;
-#     proxy_connect_timeout 7d;
-#     proxy_send_timeout 7d;
-#     proxy_read_timeout 7d;
-# }
-#
-# location /messenger/health {
-#     proxy_pass http://messenger_backend/health;
-# }
-NGINX_EOF
+location /messenger/ {
+    proxy_pass http://messenger_frontend/;
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+}
 
-    # Замена портов
-    sed -i "s/BACKEND_PORT/${BACKEND_PORT}/g" "$NGINX_CONF"
-    sed -i "s/FRONTEND_PORT/${FRONTEND_PORT}/g" "$NGINX_CONF"
+location /messenger/api/ {
+    proxy_pass http://messenger_backend/;
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+}
 
-    log_warn "Конфиг создан: $NGINX_CONF"
-    log_warn "Добавьте location блоки в ваш существующий server block в nginx."
-    log_warn "Затем: sudo nginx -t && sudo systemctl reload nginx"
+location /messenger/ws {
+    proxy_pass http://messenger_backend/ws;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_connect_timeout 7d;
+    proxy_send_timeout 7d;
+    proxy_read_timeout 7d;
+}
+
+location /messenger/health {
+    proxy_pass http://messenger_backend/health;
+}
+EOF
+        ln -sf "$NGINX_CONF" "$NGINX_LINK"
+    else
+        # Добавляем include в существующий конфиг
+        log_info "Добавляем include в ${main_conf}"
+        if ! grep -q "messenger-locations.conf" "$main_conf" 2>/dev/null; then
+            # Создаём фрагмент
+            mkdir -p /etc/nginx/snippets
+            cat > "/etc/nginx/snippets/messenger-locations.conf" <<EOF
+upstream messenger_backend {
+    server 127.0.0.1:${BACKEND_PORT};
+    keepalive 32;
+}
+
+upstream messenger_frontend {
+    server 127.0.0.1:${FRONTEND_PORT};
+    keepalive 32;
+}
+
+location /messenger/ {
+    proxy_pass http://messenger_frontend/;
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+}
+
+location /messenger/api/ {
+    proxy_pass http://messenger_backend/;
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+}
+
+location /messenger/ws {
+    proxy_pass http://messenger_backend/ws;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_connect_timeout 7d;
+    proxy_send_timeout 7d;
+    proxy_read_timeout 7d;
+}
+
+location /messenger/health {
+    proxy_pass http://messenger_backend/health;
+}
+EOF
+            # Добавляем include в конец server block
+            sed -i '/^}$/i\    include /etc/nginx/snippets/messenger-locations.conf;' "$main_conf"
+            log_ok "Include добавлен в ${main_conf}"
+        fi
+    fi
+
+    # Тест и перезагрузка nginx
+    if nginx -t 2>/dev/null; then
+        systemctl reload nginx
+        log_ok "nginx перезагружен"
+    else
+        log_warn "nginx -t failed. Проверьте конфиг вручную."
+    fi
 }
 
 # =============================================================================
