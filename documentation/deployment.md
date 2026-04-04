@@ -7,15 +7,15 @@
 ```mermaid
 graph TB
     Internet["🌐 Internet"]
-    Caddy["🔒 Caddy :443/:80<br/>Reverse Proxy + HTTPS"]
-    Nginx["🖥️ Nginx :80<br/>Frontend Static"]
-    App["⚙️ FastAPI :8000<br/>Backend API"]
+    Nginx["🔒 Хостовой Nginx :443/:80<br/>Reverse Proxy + HTTPS"]
+    Frontend["🖥️ Nginx :9000<br/>Frontend Static"]
+    App["⚙️ FastAPI :8001<br/>Backend API"]
     DB["💾 SQLite<br/>./data/app.db"]
 
-    Internet --> Caddy
-    Caddy -->|/| Nginx
-    Caddy -->|/api/*| App
-    Caddy -->|/ws| App
+    Internet --> Nginx
+    Nginx -->|/messenger/| Frontend
+    Nginx -->|/messenger/api/*| App
+    Nginx -->|/messenger/ws| App
     App --> DB
 ```
 
@@ -23,9 +23,11 @@ graph TB
 
 | Сервис | Образ | Порты | Описание |
 |--------|-------|-------|----------|
-| app | Custom | 8000 | Backend (FastAPI) |
+| app | Custom | 8001 | Backend (FastAPI) |
 | frontend | nginx:alpine | 9000:80 | Frontend (Vue 3 PWA) |
-| proxy | caddy:2-alpine | 80, 443 | Reverse proxy + HTTPS |
+| ~~proxy~~ | ~~caddy:2-alpine~~ | ~~80, 443~~ | Закомментирован — используется хостовой nginx |
+
+> **Примечание:** Caddy закомментирован в `docker-compose.yml`. Для production используется хостовой nginx с SSL от Let's Encrypt. См. [nginx-host.md](nginx-host.md).
 
 ### Быстрый старт
 
@@ -54,16 +56,14 @@ make up       # Запуск
 
 ## Production
 
-### Домен и DNS
+### Хостовой nginx
 
-1. Купите домен
-2. Направьте A-запись на IP сервера
-3. Обновите `Caddyfile`: замените `your-domain.com`
-4. Обновите `.env`: `CORS_ORIGINS=http://your-domain.com`
+См. [nginx-host.md](nginx-host.md) — полная инструкция по настройке.
 
-### HTTPS
-
-Caddy автоматически получает и обновляет SSL-сертификаты Let's Encrypt.
+Кратко:
+1. Добавьте location блоки в существующий server block
+2. `sudo nginx -t && sudo systemctl reload nginx`
+3. Запустите backend и frontend
 
 ### Бэкапы
 
