@@ -459,128 +459,69 @@ EOF
 step_nginx() {
     log_info "=== Этап 7: Настройка nginx ==="
 
-    # Проверка что домен не занят
-    if grep -q "server_name.*${DOMAIN}" /etc/nginx/sites-enabled/* 2>/dev/null; then
-        die "Домен $DOMAIN уже используется в nginx. Измените DOMAIN или удалите существующую конфигурацию."
-    fi
-
     cat > "$NGINX_CONF" <<EOF
-# Upstream для backend
+# Upstream для backend мессенджера
 upstream messenger_backend {
     server 127.0.0.1:${BACKEND_PORT};
     keepalive 32;
 }
 
-# Upstream для frontend
+# Upstream для frontend мессенджера
 upstream messenger_frontend {
     server 127.0.0.1:${FRONTEND_PORT};
     keepalive 32;
 }
 
-# HTTP → HTTPS redirect
-server {
-    listen 80;
-    listen [::]:80;
-    server_name ${DOMAIN};
-
-    # Let's Encrypt challenge
-    location /.well-known/acme-challenge/ {
-        root /var/www/certbot;
-    }
-
-    location / {
-        return 301 https://\$host\$request_uri;
-    }
+# Мессенджер — location для добавления в существующий server block
+# Frontend SPA
+location /messenger/ {
+    proxy_pass http://messenger_frontend/;
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_cache_bypass \$http_upgrade;
 }
 
-# HTTPS server
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name ${DOMAIN};
+# Backend API
+location /messenger/api/ {
+    proxy_pass http://messenger_backend/;
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_connect_timeout 60s;
+    proxy_send_timeout 60s;
+    proxy_read_timeout 60s;
+}
 
-    # SSL сертификаты (будут обновлены certbot)
-    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+# Backend WebSocket
+location /messenger/ws {
+    proxy_pass http://messenger_backend/ws;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_connect_timeout 7d;
+    proxy_send_timeout 7d;
+    proxy_read_timeout 7d;
+}
 
-    # SSL настройки
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
-    ssl_prefer_server_ciphers off;
-    ssl_session_cache shared:SSL:10m;
-    ssl_session_timeout 1d;
-    ssl_session_tickets off;
-
-    # Security headers
-    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-
-    # Gzip
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
-    gzip_min_length 1000;
-
-    # Frontend (SPA)
-    location / {
-        proxy_pass http://messenger_frontend;
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_cache_bypass \$http_upgrade;
-    }
-
-    # Backend API
-    location /api/ {
-        proxy_pass http://messenger_backend;
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-
-        # Timeouts
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 60s;
-    }
-
-    # Backend WebSocket
-    location /ws {
-        proxy_pass http://messenger_backend;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-
-        # WebSocket timeouts
-        proxy_connect_timeout 7d;
-        proxy_send_timeout 7d;
-        proxy_read_timeout 7d;
-    }
-
-    # Health check
-    location /health {
-        proxy_pass http://messenger_backend;
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-    }
-
-    # Запрет доступа к скрытым файлам
-    location ~ /\. {
-        deny all;
-        access_log off;
-        log_not_found off;
-    }
+# Health check
+location /messenger/health {
+    proxy_pass http://messenger_backend/health;
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
 }
 EOF
+
+    log_warn "Конфиг создан как фрагмент location. Добавьте его в существующий server block."
+    log_warn "Файл: $NGINX_CONF"
 
     # Создание директории для certbot
     mkdir -p /var/www/certbot
@@ -600,25 +541,21 @@ EOF
 # =============================================================================
 
 step_https() {
-    log_info "=== Этап 8: Получение SSL сертификата ==="
+    log_info "=== Этап 8: Проверка SSL сертификата ==="
 
     # Проверка что certbot установлен
     if ! command -v certbot &>/dev/null; then
-        die "certbot не найден. Установите: apt-get install -y certbot python3-certbot-nginx"
+        log_warn "certbot не найден. SSL уже должен быть настроен вашим nginx."
+        return 0
     fi
 
-    # Получение сертификата
-    log_info "Запрос сертификата для ${DOMAIN}..."
-    certbot --nginx \
-        -d "$DOMAIN" \
-        --email "$EMAIL" \
-        --agree-tos \
-        --no-eff-email \
-        --redirect \
-        --non-interactive \
-        || log_warn "certbot не смог получить сертификат. Проверьте DNS и доступность домена."
-
-    log_ok "HTTPS настроен"
+    # Проверка существует ли уже сертификат для домена
+    if [ -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]; then
+        log_ok "SSL сертификат для ${DOMAIN} уже существует"
+    else
+        log_warn "SSL сертификат для ${DOMAIN} не найден."
+        log_warn "Получите его вручную: sudo certbot certonly --nginx -d ${DOMAIN} --email ${EMAIL}"
+    fi
 }
 
 # =============================================================================
@@ -693,21 +630,25 @@ step_verify() {
     fi
 
     # Проверка frontend
-    http_code=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${FRONTEND_PORT}" 2>/dev/null || echo "000")
+    http_code=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${FRONTEND_PORT}/" 2>/dev/null || echo "000")
 
     if [ "$http_code" = "200" ]; then
-        log_ok "Frontend отвечает: http://127.0.0.1:${FRONTEND_PORT}"
+        log_ok "Frontend отвечает: http://127.0.0.1:${FRONTEND_PORT}/"
     else
         log_error "Frontend не отвечает (HTTP $http_code)"
     fi
 
-    # Проверка nginx
-    http_code=$(curl -s -o /dev/null -w "%{http_code}" "https://${DOMAIN}/health" -k 2>/dev/null || echo "000")
+    # Проверка через nginx (если SSL настроен)
+    if [ -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]; then
+        http_code=$(curl -s -o /dev/null -w "%{http_code}" "https://${DOMAIN}/messenger/health" -k 2>/dev/null || echo "000")
 
-    if [ "$http_code" = "200" ]; then
-        log_ok "nginx проксирует: https://${DOMAIN}/health"
+        if [ "$http_code" = "200" ]; then
+            log_ok "nginx проксирует: https://${DOMAIN}/messenger/health"
+        else
+            log_warn "nginx не проксирует (HTTP $http_code). Проверьте конфиг nginx."
+        fi
     else
-        log_warn "nginx не проксирует (HTTP $http_code). Возможно, сертификат ещё не получен."
+        log_warn "SSL сертификат не найден. Проверка через nginx пропущена."
     fi
 }
 
