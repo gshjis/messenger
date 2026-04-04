@@ -34,7 +34,7 @@ COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.
 COPY --from=deps /usr/local/bin /usr/local/bin
 
 # Копирование только кода приложения (без тестов, docs и т.д.)
-COPY messenger/ ./messenger/
+COPY --chown=app:app messenger/ ./messenger/
 
 # Создание директорий
 RUN mkdir -p /app/data/uploads /app/data/logs \
