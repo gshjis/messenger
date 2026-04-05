@@ -252,7 +252,7 @@ EOF
     # Создаём location фрагмент
     cat > "/etc/nginx/snippets/messenger-locations.conf" <<EOF
 location /messenger/ {
-    proxy_pass http://messenger_frontend/;
+    proxy_pass http://messenger_frontend/messenger/;
     proxy_http_version 1.1;
     proxy_set_header Host \$host;
     proxy_set_header X-Real-IP \$remote_addr;
