@@ -181,17 +181,16 @@ async def update_profile(
 
 @router.post("/invite", response_model=GenerateInviteResponse)
 async def generate_invite(
-    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Генерация нового invite-кода."""
+    """Генерация нового invite-кода (публичный endpoint)."""
     code = generate_invite_code()
-    invite = InviteCode(code=code, created_by=current_user.id)
+    invite = InviteCode(code=code, created_by=None)
     session.add(invite)
     await session.commit()
     await session.refresh(invite)
 
-    logger.info(f"User {current_user.id} generated invite code")
+    logger.info(f"Generated invite code: {code}")
     return GenerateInviteResponse(code=invite.code)
 
 
