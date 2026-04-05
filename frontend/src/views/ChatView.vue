@@ -10,6 +10,25 @@
         </div>
       </div>
 
+      <!-- User Search -->
+      <div class="user-search">
+        <input
+          v-model="searchQuery"
+          placeholder="Search users..."
+          @input="handleSearch"
+        />
+        <div v-if="searchResults.length > 0" class="search-results">
+          <div
+            v-for="user in searchResults"
+            :key="user.id"
+            class="search-result-item"
+            @click="selectUser(user)"
+          >
+            {{ user.username }}
+          </div>
+        </div>
+      </div>
+
       <div class="chat-list">
         <div
           v-for="chat in chatStore.chats"
@@ -131,6 +150,9 @@ const newChatType = ref('group')
 const profileUsername = ref(auth.user?.username || '')
 const inviteCodeResult = ref('')
 const messagesContainer = ref(null)
+const searchQuery = ref('')
+const searchResults = ref([])
+let searchTimeout = null
 
 const theme = ref(localStorage.getItem('theme') || 'dark')
 document.documentElement.setAttribute('data-theme', theme.value)
@@ -239,6 +261,28 @@ function handleLogout() {
   router.push('/auth')
 }
 
+async function handleSearch() {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  if (!searchQuery.value.trim()) {
+    searchResults.value = []
+    return
+  }
+  searchTimeout = setTimeout(async () => {
+    try {
+      searchResults.value = await auth.searchUsers(searchQuery.value)
+    } catch (e) {
+      console.error('Search error:', e)
+    }
+  }, 300)
+}
+
+function selectUser(user) {
+  // TODO: Create personal chat with this user or show user profile
+  console.log('Selected user:', user)
+  searchQuery.value = ''
+  searchResults.value = []
+}
+
 function formatTime(iso) {
   const d = new Date(iso)
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -309,5 +353,49 @@ select {
   padding: 10px 15px;
   border-radius: 8px;
   font-size: 14px;
+}
+
+.user-search {
+  padding: 10px;
+  position: relative;
+}
+
+.user-search input {
+  width: 100%;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.search-results {
+  position: absolute;
+  top: 100%;
+  left: 10px;
+  right: 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 10;
+  margin-top: 4px;
+}
+
+.search-result-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+
+.search-result-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
 }
 </style>

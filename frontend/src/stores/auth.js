@@ -75,11 +75,19 @@ export const useAuthStore = defineStore('auth', () => {
     return (await res.json()).code
   }
 
+  async function searchUsers(query, limit = 20) {
+    const res = await fetch(`${API_BASE}/users/search?q=${encodeURIComponent(query)}&limit=${limit}`, {
+      headers: { 'Authorization': `Bearer ${token.value}` }
+    })
+    if (!res.ok) throw new Error('Search failed')
+    return await res.json()
+  }
+
   function logout() {
     token.value = null
     user.value = null
     localStorage.removeItem('token')
   }
 
-  return { user, token, isAuthenticated, login, register, fetchMe, updateProfile, generateInvite, logout }
+  return { user, token, isAuthenticated, login, register, fetchMe, updateProfile, generateInvite, searchUsers, logout }
 })

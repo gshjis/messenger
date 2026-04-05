@@ -15,6 +15,7 @@ from slowapi.util import get_remote_address
 from messenger.api.auth import router as auth_router
 from messenger.api.chat import router as chat_router
 from messenger.api.files import router as files_router
+from messenger.api.users import router as users_router
 from messenger.config import settings
 from messenger.database import init_db
 from messenger.websockets.handler import router as ws_router
@@ -117,6 +118,7 @@ async def security_headers(request: Request, call_next: Callable[[Request], Awai
 app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(files_router)
+app.include_router(users_router)
 app.include_router(ws_router)
 
 

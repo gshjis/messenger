@@ -46,3 +46,13 @@ class GenerateInviteResponse(BaseModel):
     """Ответ с invite-кодом."""
 
     code: str
+
+
+class UserSearchResponse(BaseModel):
+    """Ответ с данными пользователя для поиска."""
+
+    id: int
+    username: str
+    is_active: bool
+
+    model_config = {"from_attributes": True}
