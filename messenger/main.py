@@ -1,5 +1,6 @@
 """Точка входа FastAPI приложения."""
 
+import sys
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -35,7 +36,7 @@ async def lifespan(app: FastAPI) -> None:
     # Настройка логирования
     logger.remove(0)
     logger.add(
-        "stderr",
+        sys.stderr,
         level=settings.log_level,
         format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan> - <level>{message}</level>",
     )

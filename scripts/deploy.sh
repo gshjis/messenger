@@ -426,7 +426,6 @@ main() {
     step_env
     step_docker
     step_nginx
-    step_ssl
     step_logging
 
     echo ""
