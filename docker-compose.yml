@@ -35,27 +35,8 @@ services:
     depends_on:
       - app
 
-  # proxy закомментирован — используется хостовой nginx
-  # proxy:
-  #   image: caddy:2-alpine
-  #   restart: unless-stopped
-  #   ports:
-  #     - "8081:80"
-  #     - "8443:443"
-  #   volumes:
-  #     - ./Caddyfile:/etc/caddy/Caddyfile:ro
-  #     - caddy-data:/data
-  #     - caddy-config:/config
-  #   networks:
-  #     - ms-net
-  #   depends_on:
-  #     - frontend
-  #     - app
 
 networks:
   ms-net:
     driver: bridge
 
-volumes:
-  caddy-data:
-  caddy-config:
