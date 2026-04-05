@@ -18,6 +18,12 @@ class ChatCreate(BaseModel):
     member_ids: list[int] = Field(default_factory=list)
 
 
+class CreatePersonalChatRequest(BaseModel):
+    """Запрос на создание/получение личного чата."""
+
+    user_id: int = Field(description="ID пользователя, с которым нужно создать чат")
+
+
 class ChatResponse(BaseModel):
     """Ответ с данными чата."""
 

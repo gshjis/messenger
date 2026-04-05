@@ -17,6 +17,7 @@ from messenger.schemas.chat import (
     ChatCreate,
     ChatMemberResponse,
     ChatResponse,
+    CreatePersonalChatRequest,
     MessageCreate,
     MessageListResponse,
     MessageResponse,
@@ -112,6 +113,90 @@ async def create_chat(
         created_at=chat.created_at,
         updated_at=chat.updated_at,
         member_count=member_count,
+    )
+
+
+@router.post("/personal", response_model=ChatResponse, status_code=status.HTTP_201_CREATED)
+async def create_or_get_personal_chat(
+    data: CreatePersonalChatRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ChatResponse:
+    """Создание или получение личного чата с другим пользователем.
+    
+    Если personal чат между двумя пользователями уже существует — возвращает его.
+    Иначе создаёт новый чат с обоими участниками.
+    """
+    assert current_user.id is not None
+    
+    # Проверка что пользователь не пытается создать чат с собой
+    if data.user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot create chat with yourself")
+    
+    # Проверка что второй пользователь существует
+    result = await session.exec(select(User).where(User.id == data.user_id))
+    other_user = result.first()
+    if other_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Поиск существующего personal чата между пользователями
+    existing_result = await session.exec(
+        select(Chat)
+        .join(ChatMember, ChatMember.chat_id == Chat.id)
+        .where(
+            Chat.type == ChatType.personal,
+            ChatMember.user_id == current_user.id,
+        )
+    )
+    existing_chats = existing_result.all()
+    
+    for chat in existing_chats:
+        # Проверяем есть ли второй пользователь в этом чате
+        members_result = await session.exec(
+            select(ChatMember).where(
+                ChatMember.chat_id == chat.id,
+                ChatMember.user_id == data.user_id,
+            )
+        )
+        if members_result.first() is not None:
+            # Чат уже существует — возвращаем его
+            count_result = await session.exec(
+                select(func.count()).select_from(ChatMember).where(ChatMember.chat_id == chat.id)
+            )
+            return ChatResponse(
+                id=chat.id,  # type: ignore[arg-type]
+                type=chat.type,
+                name=chat.name,
+                description=chat.description,
+                avatar_path=chat.avatar_path,
+                created_at=chat.created_at,
+                updated_at=chat.updated_at,
+                member_count=count_result.one(),
+            )
+    
+    # Создаём новый personal чат
+    chat = Chat(type=ChatType.personal, name=None, description=None)
+    session.add(chat)
+    await session.flush()
+    
+    # Добавляем обоих участников как admin
+    member1 = ChatMember(chat_id=chat.id, user_id=current_user.id, role=MemberRole.admin)  # type: ignore[arg-type]
+    member2 = ChatMember(chat_id=chat.id, user_id=data.user_id, role=MemberRole.admin)  # type: ignore[arg-type]
+    session.add(member1)
+    session.add(member2)
+    
+    await session.commit()
+    await session.refresh(chat)
+    
+    return ChatResponse(
+        id=chat.id,  # type: ignore[arg-type]
+        type=chat.type,
+        name=chat.name,
+        description=chat.description,
+        avatar_path=chat.avatar_path,
+        created_at=chat.created_at,
+        updated_at=chat.updated_at,
+        member_count=2,
     )
 
 

@@ -36,6 +36,26 @@ export const useChatStore = defineStore('chat', () => {
     throw new Error('Failed to create chat')
   }
 
+  async function createOrGetPersonalChat(userId, token) {
+    const res = await fetch(`${API_BASE}/chats/personal`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ user_id: userId })
+    })
+    if (res.ok) {
+      const chat = await res.json()
+      // Добавляем в список если ещё нет
+      if (!chats.value.find(c => c.id === chat.id)) {
+        chats.value.unshift(chat)
+      }
+      return chat
+    }
+    throw new Error('Failed to create personal chat')
+  }
+
   async function selectChat(chatId, token) {
     currentChat.value = chats.value.find(c => c.id === chatId)
     messages.value = []
@@ -105,7 +125,7 @@ export const useChatStore = defineStore('chat', () => {
 
   return {
     chats, currentChat, messages, members, loading, page, hasMore,
-    fetchChats, createChat, selectChat, fetchMessages, fetchMembers,
+    fetchChats, createChat, createOrGetPersonalChat, selectChat, fetchMessages, fetchMembers,
     sendMessage, addMessage, reset
   }
 })

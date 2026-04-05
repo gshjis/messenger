@@ -156,3 +156,67 @@ class TestMessageAPI:
 
         await test_session.refresh(msg)
         assert msg.is_deleted is True
+
+
+@pytest.mark.asyncio
+class TestPersonalChatAPI:
+    """Тесты личных чатов."""
+
+    async def test_create_personal_chat(self, auth_client: AsyncClient, test_session: AsyncSession, test_user: User) -> None:
+        """Создание личного чата."""
+        assert test_user.id is not None
+        other_user = User(username="other_user", hashed_password=hash_password("SecurePass123!"))
+        test_session.add(other_user)
+        await test_session.commit()
+        await test_session.refresh(other_user)
+
+        response = await auth_client.post(
+            "/api/chats/personal",
+            json={"user_id": other_user.id},
+        )
+        assert response.status_code == 201
+        data = response.json()
+        assert data["type"] == "personal"
+        assert data["member_count"] == 2
+
+    async def test_get_existing_personal_chat(self, auth_client: AsyncClient, test_session: AsyncSession, test_user: User) -> None:
+        """Получение существующего личного чата (не создаёт дубликат)."""
+        assert test_user.id is not None
+        other_user = User(username="other_user2", hashed_password=hash_password("SecurePass123!"))
+        test_session.add(other_user)
+        await test_session.commit()
+        await test_session.refresh(other_user)
+
+        # Первый запрос — создание
+        response1 = await auth_client.post(
+            "/api/chats/personal",
+            json={"user_id": other_user.id},
+        )
+        assert response1.status_code == 201
+        chat_id_1 = response1.json()["id"]
+
+        # Второй запрос — должен вернуть тот же чат
+        response2 = await auth_client.post(
+            "/api/chats/personal",
+            json={"user_id": other_user.id},
+        )
+        assert response2.status_code in (200, 201)
+        chat_id_2 = response2.json()["id"]
+        assert chat_id_1 == chat_id_2
+
+    async def test_create_personal_chat_with_self(self, auth_client: AsyncClient, test_user: User) -> None:
+        """Попытка создать чат с собой."""
+        assert test_user.id is not None
+        response = await auth_client.post(
+            "/api/chats/personal",
+            json={"user_id": test_user.id},
+        )
+        assert response.status_code == 400
+
+    async def test_create_personal_chat_user_not_found(self, auth_client: AsyncClient) -> None:
+        """Попытка создать чат с несуществующим пользователем."""
+        response = await auth_client.post(
+            "/api/chats/personal",
+            json={"user_id": 99999},
+        )
+        assert response.status_code == 404

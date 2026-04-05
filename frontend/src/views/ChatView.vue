@@ -276,11 +276,29 @@ async function handleSearch() {
   }, 300)
 }
 
-function selectUser(user) {
-  // TODO: Create personal chat with this user or show user profile
-  console.log('Selected user:', user)
-  searchQuery.value = ''
-  searchResults.value = []
+async function selectUser(user) {
+  try {
+    // Создаём или получаем personal чат
+    const chat = await chatStore.createOrGetPersonalChat(user.id, auth.token)
+    
+    // Очищаем поиск
+    searchQuery.value = ''
+    searchResults.value = []
+    
+    // Переключаемся на чат
+    await chatStore.selectChat(chat.id, auth.token)
+    
+    // Подписываемся через WebSocket
+    if (ws) {
+      ws.send(JSON.stringify({ action: 'subscribe', chat_id: chat.id }))
+    }
+    
+    showSidebar.value = window.innerWidth > 768
+    scrollToBottom()
+  } catch (e) {
+    console.error('Failed to create personal chat:', e)
+    alert(e.message)
+  }
 }
 
 function formatTime(iso) {
