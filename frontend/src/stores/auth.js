@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
+const API_BASE = '/messenger/api'
+
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
   const token = ref(localStorage.getItem('token') || null)
@@ -8,7 +10,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!token.value)
 
   async function login(username, password) {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
@@ -22,7 +24,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function register(username, password, inviteCode) {
-    const res = await fetch('/api/auth/register', {
+    const res = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password, invite_code: inviteCode }),
@@ -40,7 +42,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function fetchMe() {
     if (!token.value) return
-    const res = await fetch('/api/auth/me', {
+    const res = await fetch(`${API_BASE}/auth/me`, {
       credentials: 'include',
       headers: { 'Authorization': `Bearer ${token.value}` }
     })
@@ -52,7 +54,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function updateProfile(username) {
-    const res = await fetch('/api/auth/me', {
+    const res = await fetch(`${API_BASE}/auth/me`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -65,7 +67,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function generateInvite() {
-    const res = await fetch('/api/auth/invite', {
+    const res = await fetch(`${API_BASE}/auth/invite`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token.value}` }
     })

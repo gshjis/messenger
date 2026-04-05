@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
+const API_BASE = '/messenger/api'
+
 export const useChatStore = defineStore('chat', () => {
   const chats = ref([])
   const currentChat = ref(null)
@@ -11,14 +13,14 @@ export const useChatStore = defineStore('chat', () => {
   const hasMore = ref(true)
 
   async function fetchChats(token) {
-    const res = await fetch('/api/chats', {
+    const res = await fetch(`${API_BASE}/chats`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     if (res.ok) chats.value = await res.json()
   }
 
   async function createChat(data, token) {
-    const res = await fetch('/api/chats', {
+    const res = await fetch(`${API_BASE}/chats`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -48,7 +50,7 @@ export const useChatStore = defineStore('chat', () => {
     loading.value = true
     try {
       const res = await fetch(
-        `/api/chats/${currentChat.value.id}/messages?page=${page.value}&per_page=50`,
+        `${API_BASE}/chats/${currentChat.value.id}/messages?page=${page.value}&per_page=50`,
         { headers: { 'Authorization': `Bearer ${token}` } }
       )
       if (res.ok) {
@@ -66,7 +68,7 @@ export const useChatStore = defineStore('chat', () => {
 
   async function fetchMembers(token) {
     if (!currentChat.value) return
-    const res = await fetch(`/api/chats/${currentChat.value.id}/members`, {
+    const res = await fetch(`${API_BASE}/chats/${currentChat.value.id}/members`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     if (res.ok) members.value = await res.json()
@@ -74,7 +76,7 @@ export const useChatStore = defineStore('chat', () => {
 
   async function sendMessage(content, token) {
     if (!currentChat.value) return
-    const res = await fetch(`/api/chats/${currentChat.value.id}/messages`, {
+    const res = await fetch(`${API_BASE}/chats/${currentChat.value.id}/messages`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

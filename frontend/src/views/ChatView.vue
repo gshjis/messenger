@@ -160,7 +160,7 @@ function toggleTheme() {
 
 function connectWebSocket() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  ws = new WebSocket(`${protocol}//${window.location.host}/ws?token=${auth.token}`)
+  ws = new WebSocket(`${protocol}//${window.location.host}/messenger/ws?token=${auth.token}`)
 
   ws.onopen = () => {
     console.log('WebSocket connected')
