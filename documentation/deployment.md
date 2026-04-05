@@ -24,7 +24,7 @@ graph TB
 | Сервис | Образ | Порты | Описание |
 |--------|-------|-------|----------|
 | app | Custom | 8001 | Backend (FastAPI) |
-| frontend | nginx:alpine | 9000:80 | Frontend (Vue 3 PWA) |
+| frontend | Custom (multi-stage) | 9000:80 | Frontend (Vue 3 PWA) |
 | ~~proxy~~ | ~~caddy:2-alpine~~ | ~~80, 443~~ | Закомментирован — используется хостовой nginx |
 
 > **Примечание:** Caddy закомментирован в `docker-compose.yml`. Для production используется хостовой nginx с SSL от Let's Encrypt. См. [nginx-host.md](nginx-host.md).
