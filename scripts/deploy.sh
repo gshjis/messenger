@@ -309,6 +309,13 @@ EOF
             sed -i '/^}$/i\    include /etc/nginx/snippets/messenger-locations.conf;' "$main_conf"
             log_ok "Include добавлен в ${main_conf}"
         fi
+
+        # Добавляем server_name gshjis.org в существующий server block для certbot
+        if ! grep -q "server_name.*${DOMAIN}" "$main_conf" 2>/dev/null; then
+            # Добавляем gshjis.org к существующему server_name
+            sed -i "s/server_name \(.*\);/server_name \1 ${DOMAIN};/" "$main_conf"
+            log_ok "Домен ${DOMAIN} добавлен в server_name"
+        fi
     else
         log_warn "Не найден существующий nginx конфиг."
         log_warn "Добавьте в nginx.conf (в http блок):"
