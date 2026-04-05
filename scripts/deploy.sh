@@ -49,12 +49,8 @@ DOMAIN="${MESSENGER_DOMAIN:-YOUR_DOMAIN_HERE}"
 # Email для уведомлений
 EMAIL="${MESSENGER_EMAIL:-YOUR_EMAIL_HERE}"
 
-# Репозиторий и ветка
-REPO_URL="${MESSENGER_REPO:-https://github.com/your-org/messenger.git}"
-REPO_BRANCH="${MESSENGER_BRANCH:-main}"
-
-# Директории
-INSTALL_DIR="${MESSENGER_INSTALL_DIR:-/opt/messenger}"
+# Директории (используем текущую директорию проекта)
+INSTALL_DIR="${MESSENGER_INSTALL_DIR:-$PROJECT_DIR}"
 LOG_DIR="/var/log/messenger"
 NGINX_CONF="/etc/nginx/sites-available/messenger"
 NGINX_LINK="/etc/nginx/sites-enabled/messenger"
@@ -142,32 +138,11 @@ step_checks() {
 }
 
 # =============================================================================
-# ЭТАП 2: Клонирование репозитория
-# =============================================================================
-
-step_clone() {
-    log_info "=== Этап 2: Клонирование репозитория ==="
-
-    if [ -d "${INSTALL_DIR}/.git" ]; then
-        log_info "Обновление репозитория..."
-        cd "$INSTALL_DIR"
-        git fetch origin
-        git reset --hard "origin/${REPO_BRANCH}"
-    else
-        log_info "Клонирование в ${INSTALL_DIR}..."
-        rm -rf "$INSTALL_DIR"
-        git clone -b "$REPO_BRANCH" "$REPO_URL" "$INSTALL_DIR"
-    fi
-
-    log_ok "Репозиторий: ${INSTALL_DIR}"
-}
-
-# =============================================================================
-# ЭТАП 3: Настройка .env
+# ЭТАП 2: Настройка .env
 # =============================================================================
 
 step_env() {
-    log_info "=== Этап 3: Настройка .env ==="
+    log_info "=== Этап 2: Настройка .env ==="
 
     local env_file="${INSTALL_DIR}/.env"
 
@@ -208,7 +183,7 @@ EOF
 # =============================================================================
 
 step_docker() {
-    log_info "=== Этап 4: Сборка и запуск контейнеров ==="
+    log_info "=== Этап 3: Сборка и запуск контейнеров ==="
 
     cd "$INSTALL_DIR"
 
@@ -256,7 +231,7 @@ step_docker() {
 # =============================================================================
 
 step_nginx() {
-    log_info "=== Этап 5: Настройка nginx location ==="
+    log_info "=== Этап 4: Настройка nginx location ==="
 
     # Проверяем есть ли уже наш конфиг
     if [ -f "$NGINX_CONF" ]; then
@@ -415,39 +390,13 @@ EOF
 # =============================================================================
 
 step_logging() {
-    log_info "=== Этап 6: Настройка логирования ==="
+    log_info "=== Этап 5: Настройка логирования ==="
+
     mkdir -p "$LOG_DIR"
+
+    # Логи контейнеров доступны через docker compose logs
     log_ok "Логи: docker compose logs -f app"
     log_ok "Логи: docker compose logs -f frontend"
-}
-
-# =============================================================================
-# ЭТАП 7: SSL сертификат (certbot)
-# =============================================================================
-
-step_ssl() {
-    log_info "=== Этап 7: Проверка/получение SSL сертификата ==="
-
-    local cert_path="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
-
-    if [ -f "$cert_path" ]; then
-        log_ok "SSL сертификат уже существует: $cert_path"
-        return 0
-    fi
-
-    if ! command -v certbot &>/dev/null; then
-        log_warn "certbot не найден. SSL нужно настроить вручную:"
-        log_warn "  sudo apt-get install -y certbot python3-certbot-nginx"
-        log_warn "  sudo certbot --nginx -d ${DOMAIN} --email ${EMAIL}"
-        return 0
-    fi
-
-    log_info "Запрос SSL сертификата для ${DOMAIN}..."
-    if certbot --nginx -d "$DOMAIN" --email "$EMAIL" --agree-tos --no-eff-email --non-interactive; then
-        log_ok "SSL сертификат получен"
-    else
-        log_warn "certbot не смог получить сертификат. Настройте SSL вручную."
-    fi
 }
 
 # =============================================================================
@@ -474,7 +423,6 @@ main() {
 
     # Этапы
     step_checks
-    step_clone
     step_env
     step_docker
     step_nginx
@@ -490,6 +438,11 @@ main() {
     echo "  Backend:    http://127.0.0.1:${BACKEND_PORT}"
     echo "  Frontend:   http://127.0.0.1:${FRONTEND_PORT}"
     echo ""
+    echo "  Следующие шаги:"
+    echo "  1. Добавьте location блоки из ${NGINX_CONF} в ваш nginx server block"
+    echo "  2. sudo nginx -t && sudo systemctl reload nginx"
+    echo "  3. Проверьте: curl https://${DOMAIN}/messenger/health"
+    echo ""
     echo "  Управление:"
     echo "    cd ${INSTALL_DIR}"
     echo "    docker compose logs -f app"
@@ -501,3 +454,4 @@ main() {
 }
 
 main "$@"
+
