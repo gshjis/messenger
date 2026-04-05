@@ -261,7 +261,7 @@ location /messenger/ {
 }
 
 location /messenger/api/ {
-    proxy_pass http://messenger_backend/;
+    proxy_pass http://messenger_backend/api/;
     proxy_http_version 1.1;
     proxy_set_header Host \$host;
     proxy_set_header X-Real-IP \$remote_addr;
