@@ -32,7 +32,7 @@ tests/
 .coverage
 htmlcov/
 
-# Frontend (собирается отдельно)
+# Frontend (собирается в отдельном Dockerfile)
 frontend/node_modules/
 frontend/dist/
 
