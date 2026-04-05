@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import AuthView from '../views/AuthView.vue'
-import ChatView from '../views/ChatView.vue'
+import AuthView from './views/AuthView.vue'
+import ChatView from './views/ChatView.vue'
 
 const routes = [
   { path: '/auth', component: AuthView, meta: { guest: true } },
