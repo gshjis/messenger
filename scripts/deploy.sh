@@ -400,6 +400,35 @@ step_logging() {
 }
 
 # =============================================================================
+# ЭТАП 6: SSL сертификат (certbot)
+# =============================================================================
+
+step_ssl() {
+    log_info "=== Этап 6: Проверка/получение SSL сертификата ==="
+
+    local cert_path="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
+
+    if [ -f "$cert_path" ]; then
+        log_ok "SSL сертификат уже существует: $cert_path"
+        return 0
+    fi
+
+    if ! command -v certbot &>/dev/null; then
+        log_warn "certbot не найден. SSL нужно настроить вручную:"
+        log_warn "  sudo apt-get install -y certbot python3-certbot-nginx"
+        log_warn "  sudo certbot --nginx -d ${DOMAIN} --email ${EMAIL}"
+        return 0
+    fi
+
+    log_info "Запрос SSL сертификата для ${DOMAIN}..."
+    if certbot --nginx -d "$DOMAIN" --email "$EMAIL" --agree-tos --no-eff-email --non-interactive; then
+        log_ok "SSL сертификат получен"
+    else
+        log_warn "certbot не смог получить сертификат. Настройте SSL вручную."
+    fi
+}
+
+# =============================================================================
 # ГЛАВНАЯ ФУНКЦИЯ
 # =============================================================================
 
@@ -426,6 +455,7 @@ main() {
     step_env
     step_docker
     step_nginx
+    step_ssl
     step_logging
 
     echo ""
