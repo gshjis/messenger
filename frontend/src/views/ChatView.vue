@@ -3,7 +3,7 @@
     <!-- Sidebar -->
     <div class="sidebar" :class="{ hidden: !showSidebar }">
       <div class="sidebar-header">
-        <h2>💬 Chats</h2>
+        <h2>💬 Chatsssss</h2>
         <div>
           <button class="theme-toggle" @click="toggleTheme">{{ theme === 'dark' ? '☀️' : '🌙' }}</button>
           <button @click="showCreateChat = true">+</button>
