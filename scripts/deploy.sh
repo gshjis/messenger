@@ -325,12 +325,12 @@ EOF
     fi
 
     # Тест и перезагрузка nginx
-    if nginx -t 2>/dev/null; then
+    if command -v nginx &>/dev/null && nginx -t 2>/dev/null; then
         systemctl reload nginx
         log_ok "nginx перезагружен"
     else
         log_warn "nginx -t failed. Проверьте конфиг вручную."
-        log_warn "Удалите include: sudo sed -i '/messenger/d' /etc/nginx/sites-enabled/*"
+        log_warn "Если есть дубликаты include, удалите их: sudo sed -i '/messenger/d' /etc/nginx/sites-enabled/*"
     fi
 }
 
@@ -384,15 +384,36 @@ step_ssl() {
 step_init() {
     log_info "=== Этап 7: Инициализация ==="
 
-    # Проверяем есть ли уже invite коды
+    local db_file="${INSTALL_DIR}/data/app.db"
+
+    if [ ! -f "$db_file" ]; then
+        log_warn "База данных не найдена. Пропускаем инициализацию."
+        return 0
+    fi
+
+    # Проверяем есть ли уже invite коды через Python
     local count
-    count=$(sqlite3 "${INSTALL_DIR}/data/app.db" "SELECT COUNT(*) FROM invite_codes;" 2>/dev/null || echo "0")
+    count=$(python3 -c "
+import sqlite3
+conn = sqlite3.connect('${db_file}')
+c = conn.cursor()
+c.execute('SELECT COUNT(*) FROM invite_codes')
+print(c.fetchone()[0])
+conn.close()
+" 2>/dev/null || echo "0")
 
     if [ "$count" -eq 0 ]; then
         # Генерация первого invite кода
         local code
         code=$(python3 -c "import secrets, string; print(''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8)))")
-        sqlite3 "${INSTALL_DIR}/data/app.db" "INSERT INTO invite_codes (code, max_uses, used_count, is_active, created_at) VALUES ('${code}', 1, 0, 1, datetime('now'));"
+        python3 -c "
+import sqlite3
+conn = sqlite3.connect('${db_file}')
+c = conn.cursor()
+c.execute(\"INSERT INTO invite_codes (code, max_uses, used_count, is_active, created_at) VALUES ('${code}', 1, 0, 1, datetime('now'))\")
+conn.commit()
+conn.close()
+"
         log_ok "Первый invite код создан: ${code}"
         log_warn "Сохраните его! Он нужен для регистрации первого пользователя."
     else
