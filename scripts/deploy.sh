@@ -378,6 +378,29 @@ step_ssl() {
 }
 
 # =============================================================================
+# ЭТАП 7: Инициализация (первый invite код)
+# =============================================================================
+
+step_init() {
+    log_info "=== Этап 7: Инициализация ==="
+
+    # Проверяем есть ли уже invite коды
+    local count
+    count=$(sqlite3 "${INSTALL_DIR}/data/app.db" "SELECT COUNT(*) FROM invite_codes;" 2>/dev/null || echo "0")
+
+    if [ "$count" -eq 0 ]; then
+        # Генерация первого invite кода
+        local code
+        code=$(python3 -c "import secrets, string; print(''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8)))")
+        sqlite3 "${INSTALL_DIR}/data/app.db" "INSERT INTO invite_codes (code, max_uses, used_count, is_active, created_at) VALUES ('${code}', 1, 0, 1, datetime('now'));"
+        log_ok "Первый invite код создан: ${code}"
+        log_warn "Сохраните его! Он нужен для регистрации первого пользователя."
+    else
+        log_ok "Invite коды уже существуют"
+    fi
+}
+
+# =============================================================================
 # ГЛАВНАЯ ФУНКЦИЯ
 # =============================================================================
 
@@ -406,6 +429,7 @@ main() {
     step_nginx
     step_ssl
     step_logging
+    step_init
 
     echo ""
     echo "=============================================="
